@@ -95,7 +95,20 @@
         document.getElementById("analyzeBtn").disabled = false;
         document.getElementById("analyzeBtnText").textContent = "Analyze";
         document.getElementById("analyzeBtnSpinner").classList.add("d-none");
+
+        const newUrl = `${window.location.pathname}?url=${encodeURIComponent(url)}`;
+        window.history.pushState({}, '', newUrl);
     }
+
+    window.addEventListener("DOMContentLoaded", () => {
+        const params = new URLSearchParams(window.location.search);
+        const urlParam = params.get("url");
+
+        if (urlParam) {
+            document.getElementById("urlInput").value = urlParam;
+            analyzeURL(); // optional: auto-trigger analysis
+        }
+    });
 </script>
 </body>
 </html>

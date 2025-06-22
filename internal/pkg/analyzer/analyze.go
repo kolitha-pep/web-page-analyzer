@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -30,6 +31,7 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 	startedAt := time.Now()
 
 	// Validate the input URL
+	in = EnsureHTTPS(in)
 	parsedUrl, err := url.ParseRequestURI(in)
 	if err != nil {
 		return nil, err
@@ -49,16 +51,16 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 		return nil, fmt.Errorf("status code error: %d %s", res.StatusCode, res.Status)
 	}
 
-	// goquery to parse the HTML document
-	d, err := goquery.NewDocumentFromReader(res.Body)
-	if err != nil {
-		return nil, err
-	}
-
 	// Determine HTML version of the document
 	htmlVersion, err := GetHtmlVersion(res)
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine HTML version: %w", err)
+	}
+
+	// goquery to parse the HTML document
+	d, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		return nil, err
 	}
 
 	out := &WebPageMeta{
@@ -91,10 +93,10 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 
 			defer wg.Done()
 
-			absoluteUrl, err := url.ParseRequestURI(link)
+			absoluteUrl, err := url.Parse(link)
 
 			// If the link is invalid or a mailto link, skip it
-			if err != nil || absoluteUrl.Scheme == "" || absoluteUrl.Scheme == "mailto" {
+			if err != nil || absoluteUrl.Scheme == "mailto" {
 				return
 			}
 
@@ -102,6 +104,7 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 
 			if !absoluteUrl.IsAbs() {
 				fullUrl = parsedUrl.ResolveReference(absoluteUrl).String()
+				absoluteUrl.Host = parsedUrl.Host
 			}
 
 			isInternalLink := strings.Contains(absoluteUrl.Host, baseUrl)
@@ -138,12 +141,19 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 }
 
 func GetHtmlVersion(resp *http.Response) (string, error) {
+
 	const maxRead = 8192 // reading only the first 8KB of the response body
-	limitReader := io.LimitReader(resp.Body, maxRead)
-	body, err := io.ReadAll(limitReader)
+
+	var buf bytes.Buffer
+	tee := io.TeeReader(io.LimitReader(resp.Body, 8192), &buf)
+
+	body, err := io.ReadAll(tee)
 	if err != nil {
 		return "Unknown", err
 	}
+
+	// Reset the body to the beginning for further processing
+	resp.Body = io.NopCloser(io.MultiReader(&buf, resp.Body))
 
 	content := strings.ToLower(string(body))
 	content = strings.TrimSpace(content)
@@ -181,4 +191,11 @@ func CheckForLoginForm(doc *goquery.Document) bool {
 		return true
 	})
 	return found
+}
+
+func EnsureHTTPS(url string) string {
+	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
+		return url
+	}
+	return "https://" + url
 }
