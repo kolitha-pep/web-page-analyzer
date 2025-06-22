@@ -63,6 +63,7 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 		return nil, err
 	}
 
+	// creating output object
 	out := &WebPageMeta{
 		Url:         parsedUrl.String(),
 		Title:       d.Find("title").Text(),
@@ -76,6 +77,7 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 		hTags[tag] = d.Find(tag).Length()
 	}
 
+	// Hyperlink checking
 	baseUrl := parsedUrl.Host
 	hyperLinks := d.Find("a[href]")
 	out.HeadTags = hTags
@@ -102,6 +104,7 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 
 			fullUrl := link
 
+			// If the link is relative, resolve it against the base URL
 			if !absoluteUrl.IsAbs() {
 				fullUrl = parsedUrl.ResolveReference(absoluteUrl).String()
 				absoluteUrl.Host = parsedUrl.Host
@@ -116,6 +119,7 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 				mu.Unlock()
 			}
 
+			// If the link is internal, increment internalLinks, otherwise externalLinks
 			if isInternalLink {
 				mu.Lock()
 				internalLinks++
@@ -141,11 +145,12 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 }
 
 func GetHtmlVersion(resp *http.Response) (string, error) {
+	// reading only the first 8KB of the response body
+	const maxRead = 8192
 
-	const maxRead = 8192 // reading only the first 8KB of the response body
-
+	// Use a buffer to read the response body without consuming it
 	var buf bytes.Buffer
-	tee := io.TeeReader(io.LimitReader(resp.Body, 8192), &buf)
+	tee := io.TeeReader(io.LimitReader(resp.Body, maxRead), &buf)
 
 	body, err := io.ReadAll(tee)
 	if err != nil {

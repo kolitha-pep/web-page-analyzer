@@ -31,6 +31,7 @@ func (t urlAnalyzer) AnalyzeHandler(c *gin.Context) {
 
 	result, err := analyzer.AnalyzeWebPage(url)
 	if err != nil {
+		t.logger.Error("Error analyzing web page: ", err)
 		responseObject(c, nil, err)
 		return
 	}

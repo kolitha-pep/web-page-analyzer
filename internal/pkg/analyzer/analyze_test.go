@@ -18,6 +18,12 @@ func TestAnalyze_Success(t *testing.T) {
 			<body>
 				<h1>Main Title</h1>
 				<h2>Subtitle</h2>
+				<h3>Section Title</h3>
+				<h4>Subsection Title</h4>
+				<h5>Minor Title</h5>
+				<h6>Least Important Title</h6>
+				<h6>Least Important Title</h6>
+				<h6>Least Important Title</h6>
 				<a href="http://example.com/internal">Internal</a>
 				<a href="https://external.com">External</a>
 				<form><input type="password"/></form>
@@ -39,6 +45,10 @@ func TestAnalyze_Success(t *testing.T) {
 	assert.Equal(t, "Test Page", result.Title)
 	assert.Equal(t, 1, result.HeadTags["h1"])
 	assert.Equal(t, 1, result.HeadTags["h2"])
+	assert.Equal(t, 1, result.HeadTags["h3"])
+	assert.Equal(t, 1, result.HeadTags["h4"])
+	assert.Equal(t, 1, result.HeadTags["h5"])
+	assert.Equal(t, 3, result.HeadTags["h6"])
 	assert.Equal(t, 1, result.InternalLinks)
 	assert.Equal(t, 1, result.ExternalLinks)
 	assert.Equal(t, 1, result.BrokenLinks)
