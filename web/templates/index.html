@@ -61,7 +61,7 @@
 
         const result = await res.json();
         if (!result.success) {
-            alert("Analysis failed!");
+            alert(result.message || "An error occurred while analyzing the URL.");
             document.getElementById("resultsLoading").style.display = "none";
             document.getElementById("analyzeBtn").disabled = false;
             document.getElementById("analyzeBtnText").textContent = "Analyze";

@@ -8,10 +8,12 @@ import (
 
 func Setup(logger *logrus.Logger) *gin.Engine {
 
+	// Initialize handlers
 	analyzeHandler := handler.NewUrlAnalyzer(logger)
 	webViewHandler := handler.NewWebView(logger)
 
 	r := gin.Default()
+
 	r.LoadHTMLGlob("web/templates/*")
 
 	// API routes starts here

@@ -65,3 +65,9 @@ Example for light web page:
 http://localhost:8080/web/?url=https%3A%2F%2Fgoogle.com
 
 or, for a fresh start: http://localhost:8080/web
+
+## Improvements suggestions
+- Concurrency Improvements 
+  - E.g., max 20 concurrent link validations
+- Add caching mechanism for repeated URL analyses
+- Add rate limiting to prevent abuse

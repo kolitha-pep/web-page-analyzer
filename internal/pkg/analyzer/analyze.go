@@ -31,14 +31,13 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 	startedAt := time.Now()
 
 	// Validate the input URL
-	in = EnsureHTTPS(in)
+	in = ensureHTTPS(in)
 	parsedUrl, err := url.ParseRequestURI(in)
 	if err != nil {
 		return nil, err
 	}
 
 	// Fetch the webpage content
-	fmt.Println(parsedUrl.String())
 	res, err := http.Get(parsedUrl.String())
 	if err != nil {
 		return nil, err
@@ -52,7 +51,7 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 	}
 
 	// Determine HTML version of the document
-	htmlVersion, err := GetHtmlVersion(res)
+	htmlVersion, err := getHtmlVersion(res)
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine HTML version: %w", err)
 	}
@@ -60,7 +59,7 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 	// goquery to parse the HTML document
 	d, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create document from response: %w", err)
 	}
 
 	// creating output object
@@ -137,14 +136,14 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 	out.InternalLinks = internalLinks
 	out.ExternalLinks = externalLinks
 	out.BrokenLinks = brokenLinks
-	out.HasLoginForm = CheckForLoginForm(d)
+	out.HasLoginForm = checkForLoginForm(d)
 	out.QueryTime = utils.RoundFloat(time.Since(startedAt).Seconds(), 2)
 	return out, nil
 
 	return out, nil
 }
 
-func GetHtmlVersion(resp *http.Response) (string, error) {
+func getHtmlVersion(resp *http.Response) (string, error) {
 	// reading only the first 8KB of the response body
 	const maxRead = 8192
 
@@ -154,7 +153,7 @@ func GetHtmlVersion(resp *http.Response) (string, error) {
 
 	body, err := io.ReadAll(tee)
 	if err != nil {
-		return "Unknown", err
+		return "Unknown", fmt.Errorf("failed to read body: %w", err)
 	}
 
 	// Reset the body to the beginning for further processing
@@ -186,7 +185,7 @@ func GetHtmlVersion(resp *http.Response) (string, error) {
 	}
 }
 
-func CheckForLoginForm(doc *goquery.Document) bool {
+func checkForLoginForm(doc *goquery.Document) bool {
 	found := false
 	doc.Find("form").EachWithBreak(func(i int, s *goquery.Selection) bool {
 		if s.Find("input[type='password']").Length() > 0 {
@@ -198,7 +197,7 @@ func CheckForLoginForm(doc *goquery.Document) bool {
 	return found
 }
 
-func EnsureHTTPS(url string) string {
+func ensureHTTPS(url string) string {
 	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
 		return url
 	}
