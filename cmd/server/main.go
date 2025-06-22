@@ -6,12 +6,10 @@ import (
 	"github.com/kolitha-pep/web-page-analyzer/internal/router"
 )
 
-func init() {
-	config.LoadEnv()
-}
 func main() {
 
-	// Initialize logger
+	// Initialize logger and load configuration
+	config.LoadEnv()
 	logger.Init()
 	logger.Log.Info("Starting web page analyzer")
 

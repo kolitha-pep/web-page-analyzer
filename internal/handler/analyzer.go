@@ -8,7 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type urlAnalyzerHandler struct {
+type urlAnalyzer struct {
 	logger *logrus.Logger
 }
 
@@ -17,12 +17,12 @@ type AnalyzerInterface interface {
 }
 
 func NewUrlAnalyzer(logger *logrus.Logger) AnalyzerInterface {
-	return &urlAnalyzerHandler{
+	return &urlAnalyzer{
 		logger: logger,
 	}
 }
 
-func (t urlAnalyzerHandler) AnalyzeHandler(c *gin.Context) {
+func (t urlAnalyzer) AnalyzeHandler(c *gin.Context) {
 	url := c.Query("url")
 	if url == "" {
 		responseObject(c, nil, errors.New("url is empty"))

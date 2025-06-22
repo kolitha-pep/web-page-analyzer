@@ -1,31 +1,99 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Web Page Analyzer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
-<h1>Analyze a Web Page</h1>
-<form method="POST">
-    <input type="text" name="url" placeholder="https://example.com" required />
-    <button type="submit">Analyze</button>
-</form>
+<body class="bg-light">
+<div class="container mt-5">
+    <h1 class="mb-4">Web Page Analyzer</h1>
 
-{{if .Error}}
-<p style="color:red;">Error: {{.Error}}</p>
-{{else if .URL}}
-<h2>Results for {{.URL}}</h2>
-<p><strong>HTML Version:</strong> {{.HTMLVersion}}</p>
-<p><strong>Title:</strong> {{.Title}}</p>
-<p><strong>Headings:</strong></p>
-<ul>
-    {{range $k, $v := .Headings}}
-    <li>{{$k}}: {{$v}}</li>
-    {{end}}
-</ul>
-<p><strong>Internal Links:</strong> {{.InternalLinks}}</p>
-<p><strong>External Links:</strong> {{.ExternalLinks}}</p>
-<p><strong>Inaccessible Links:</strong> {{.InaccessibleLinks}}</p>
-<p><strong>Contains Login Form:</strong> {{.LoginForm}}</p>
-{{end}}
+    <div class="mb-3">
+        <input type="text" id="urlInput" class="form-control" placeholder="Enter a URL">
+    </div>
+    <button id="analyzeBtn" onclick="analyzeURL()" class="btn btn-primary mb-4">
+        <span id="analyzeBtnText">Analyze</span>
+        <span id="analyzeBtnSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+    </button>
+
+    <div id="resultContainer" class="card d-none">
+        <div id="resultsLoading" class="text-center my-4">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Analyzing...</p>
+        </div>
+        <div class="card-body">
+            <h5 class="card-title">Analysis Result</h5>
+            <p><strong>URL:</strong> <a id="resUrl" href="#" target="_blank"></a></p>
+            <p><strong>Title:</strong> <span id="resTitle"></span></p>
+            <p><strong>HTML Version:</strong> <span id="resHTMLVersion"></span></p>
+            <p><strong>Login Form Present:</strong> <span id="resLoginForm"></span></p>
+
+            <h6 class="mt-4">Headings Count</h6>
+            <ul id="headTagsList"></ul>
+
+            <h6>Link Stats</h6>
+            <ul>
+                <li>Internal Links: <span id="resInternalLinks"></span></li>
+                <li>External Links: <span id="resExternalLinks"></span></li>
+                <li>Broken Links: <span id="resBrokenLinks"></span></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function analyzeURL() {
+
+        document.getElementById("analyzeBtn").disabled = true;
+        document.getElementById("analyzeBtnText").textContent = "Analyzing";
+        document.getElementById("analyzeBtnSpinner").classList.remove("d-none");
+
+        document.getElementById("resultContainer").classList.remove("d-none");
+        document.getElementById("resultsLoading").style.display = "block";
+
+        const url = document.getElementById("urlInput").value;
+        if (!url) return;
+
+        const encodedURL = encodeURIComponent(url);
+        const res = await fetch(`/api/analyze/url?url=${encodedURL}`);
+
+        const result = await res.json();
+        if (!result.success) {
+            alert("Analysis failed!");
+            document.getElementById("resultsLoading").style.display = "none";
+            document.getElementById("analyzeBtn").disabled = false;
+            document.getElementById("analyzeBtnText").textContent = "Analyze";
+            document.getElementById("analyzeBtnSpinner").classList.add("d-none");
+            return;
+        }
+
+        const data = result.data;
+        document.getElementById("resUrl").href = data.url;
+        document.getElementById("resUrl").textContent = data.url;
+        document.getElementById("resTitle").textContent = data.title;
+        document.getElementById("resHTMLVersion").textContent = data.html_version;
+        document.getElementById("resLoginForm").textContent = data.has_login_form ? "Yes" : "No";
+
+        const headTagsList = document.getElementById("headTagsList");
+        headTagsList.innerHTML = '';
+        for (const [tag, count] of Object.entries(data.head_tags)) {
+            const li = document.createElement("li");
+            li.textContent = `${tag.toUpperCase()}: ${count}`;
+            headTagsList.appendChild(li);
+        }
+
+        document.getElementById("resInternalLinks").textContent = data.internal_links;
+        document.getElementById("resExternalLinks").textContent = data.external_links;
+        document.getElementById("resBrokenLinks").textContent = data.broken_links;
+
+        document.getElementById("resultContainer").classList.remove("d-none");
+
+        document.getElementById("resultsLoading").style.display = "none";
+        document.getElementById("analyzeBtn").disabled = false;
+        document.getElementById("analyzeBtnText").textContent = "Analyze";
+        document.getElementById("analyzeBtnSpinner").classList.add("d-none");
+    }
+</script>
 </body>
 </html>

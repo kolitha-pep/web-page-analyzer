@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -30,6 +31,7 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 	}
 
 	// Fetch the webpage content
+	fmt.Println(parsedUrl.String())
 	res, err := http.Get(parsedUrl.String())
 	if err != nil {
 		return nil, err
@@ -42,15 +44,22 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 		return nil, fmt.Errorf("status code error: %d %s", res.StatusCode, res.Status)
 	}
 
+	// goquery to parse the HTML document
 	d, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
 		return nil, err
 	}
 
+	// Determine HTML version of the document
+	htmlVersion, err := GetHtmlVersion(res)
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine HTML version: %w", err)
+	}
+
 	out := &WebPageMeta{
 		Url:         parsedUrl.String(),
 		Title:       d.Find("title").Text(),
-		HtmlVersion: GetHtmlVersion(d),
+		HtmlVersion: htmlVersion,
 	}
 
 	// Count HTML head tags
@@ -121,12 +130,38 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 	return out, nil
 }
 
-func GetHtmlVersion(doc *goquery.Document) string {
-	documentNode := doc.Nodes[0].FirstChild
-	if documentNode != nil && documentNode.Type == 10 {
-		return "HTML5"
+func GetHtmlVersion(resp *http.Response) (string, error) {
+	const maxRead = 8192 // reading only the first 8KB of the response body
+	body := make([]byte, maxRead)
+	n, err := resp.Body.Read(body)
+	if err != nil && err != io.EOF {
+		return "Unknown", err
 	}
-	return "Unknown"
+
+	content := strings.ToLower(string(body[:n]))
+	content = strings.TrimSpace(content)
+
+	// Check for known DOCTYPEs
+	switch {
+	case strings.HasPrefix(content, "<!doctype html>"):
+		return "HTML5", nil
+	case strings.Contains(content, `<!doctype html public "-//w3c//dtd html 4.01 transitional//en"`):
+		return "HTML 4.01 Transitional", nil
+	case strings.Contains(content, `<!doctype html public "-//w3c//dtd html 4.01 strict//en"`):
+		return "HTML 4.01 Strict", nil
+	case strings.Contains(content, `<!doctype html public "-//w3c//dtd html 4.01 frameset//en"`):
+		return "HTML 4.01 Frameset", nil
+	case strings.Contains(content, `<!doctype html public "-//w3c//dtd xhtml 1.0 strict//en"`):
+		return "XHTML 1.0 Strict", nil
+	case strings.Contains(content, `<!doctype html public "-//w3c//dtd xhtml 1.0 transitional//en"`):
+		return "XHTML 1.0 Transitional", nil
+	case strings.Contains(content, `<!doctype html public "-//w3c//dtd xhtml 1.0 frameset//en"`):
+		return "XHTML 1.0 Frameset", nil
+	case strings.Contains(content, `<!doctype html public "-//w3c//dtd xhtml 1.1//en"`):
+		return "XHTML 1.1", nil
+	default:
+		return "Unknown", nil
+	}
 }
 
 func CheckForLoginForm(doc *goquery.Document) bool {
