@@ -10,7 +10,7 @@
     <h1 class="mb-4">Web Page Analyzer</h1>
 
     <div class="mb-3">
-        <input type="text" id="urlInput" class="form-control" placeholder="Enter a URL">
+        <input type="text" id="urlInput" class="form-control" placeholder="Enter a URL" required>
     </div>
     <button id="analyzeBtn" onclick="analyzeURL()" class="btn btn-primary mb-4">
         <span id="analyzeBtnText">Analyze</span>
@@ -28,6 +28,7 @@
             <p><strong>Title:</strong> <span id="resTitle"></span></p>
             <p><strong>HTML Version:</strong> <span id="resHTMLVersion"></span></p>
             <p><strong>Login Form Present:</strong> <span id="resLoginForm"></span></p>
+            <p><strong>Time taken: </strong><span id="queryTime"></span>s</p>
 
             <h6 class="mt-4">Headings Count</h6>
             <ul id="headTagsList"></ul>
@@ -45,16 +46,16 @@
 <script>
     async function analyzeURL() {
 
+        const url = document.getElementById("urlInput").value;
+        if (!url) return
+
         document.getElementById("analyzeBtn").disabled = true;
         document.getElementById("analyzeBtnText").textContent = "Analyzing";
         document.getElementById("analyzeBtnSpinner").classList.remove("d-none");
 
         document.getElementById("resultContainer").classList.remove("d-none");
         document.getElementById("resultsLoading").style.display = "block";
-
-        const url = document.getElementById("urlInput").value;
-        if (!url) return;
-
+;
         const encodedURL = encodeURIComponent(url);
         const res = await fetch(`/api/analyze/url?url=${encodedURL}`);
 
@@ -74,6 +75,7 @@
         document.getElementById("resTitle").textContent = data.title;
         document.getElementById("resHTMLVersion").textContent = data.html_version;
         document.getElementById("resLoginForm").textContent = data.has_login_form ? "Yes" : "No";
+        document.getElementById("queryTime").textContent = data.query_time;
 
         const headTagsList = document.getElementById("headTagsList");
         headTagsList.innerHTML = '';

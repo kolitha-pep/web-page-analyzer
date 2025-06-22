@@ -7,9 +7,11 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/kolitha-pep/web-page-analyzer/internal/pkg/fetcher"
+	"github.com/kolitha-pep/web-page-analyzer/internal/pkg/utils"
 )
 
 type WebPageMeta struct {
@@ -21,9 +23,12 @@ type WebPageMeta struct {
 	InternalLinks int            `json:"internal_links"`
 	ExternalLinks int            `json:"external_links"`
 	BrokenLinks   int            `json:"broken_links"`
+	QueryTime     float64        `json:"query_time"`
 }
 
 func AnalyzeWebPage(in string) (*WebPageMeta, error) {
+	startedAt := time.Now()
+
 	// Validate the input URL
 	parsedUrl, err := url.ParseRequestURI(in)
 	if err != nil {
@@ -126,19 +131,21 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 	out.ExternalLinks = externalLinks
 	out.BrokenLinks = brokenLinks
 	out.HasLoginForm = CheckForLoginForm(d)
+	out.QueryTime = utils.RoundFloat(time.Since(startedAt).Seconds(), 2)
+	return out, nil
 
 	return out, nil
 }
 
 func GetHtmlVersion(resp *http.Response) (string, error) {
 	const maxRead = 8192 // reading only the first 8KB of the response body
-	body := make([]byte, maxRead)
-	n, err := resp.Body.Read(body)
-	if err != nil && err != io.EOF {
+	limitReader := io.LimitReader(resp.Body, maxRead)
+	body, err := io.ReadAll(limitReader)
+	if err != nil {
 		return "Unknown", err
 	}
 
-	content := strings.ToLower(string(body[:n]))
+	content := strings.ToLower(string(body))
 	content = strings.TrimSpace(content)
 
 	// Check for known DOCTYPEs
