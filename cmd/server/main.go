@@ -15,4 +15,5 @@ func main() {
 
 	r := router.Setup(logger.Log)
 	r.Run(":8080")
+
 }
