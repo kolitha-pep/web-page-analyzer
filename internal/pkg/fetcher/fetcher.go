@@ -19,3 +19,12 @@ func IsLinkReachable(link string) bool {
 
 	return true
 }
+
+func HttpGet(link string) (*http.Response, error) {
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	// Send a GET request to the link
+	return client.Get(link)
+}

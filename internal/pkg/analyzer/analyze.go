@@ -38,7 +38,7 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 	}
 
 	// Fetch the webpage content
-	res, err := http.Get(parsedUrl.String())
+	res, err := fetcher.HttpGet(parsedUrl.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch the web page content: %w", err)
 	}
