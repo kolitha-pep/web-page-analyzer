@@ -17,6 +17,9 @@
         <span id="analyzeBtnSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
     </button>
 
+
+    <div id="errorContainer" class="alert alert-danger d-none" role="alert"></div>
+
     <div id="resultContainer" class="card d-none">
         <div id="resultsLoading" class="text-center my-4">
             <div class="spinner-border text-primary" role="status"></div>
@@ -52,24 +55,27 @@
         document.getElementById("analyzeBtn").disabled = true;
         document.getElementById("analyzeBtnText").textContent = "Analyzing";
         document.getElementById("analyzeBtnSpinner").classList.remove("d-none");
-
-        document.getElementById("resultContainer").classList.remove("d-none");
         document.getElementById("resultsLoading").style.display = "block";
+        document.getElementById("resultContainer").classList.add("d-none");
+        document.getElementById("errorContainer").classList.add("d-none");
 ;
         const encodedURL = encodeURIComponent(url);
         const res = await fetch(`/api/analyze/url?url=${encodedURL}`);
 
         const result = await res.json();
         if (!result.success) {
-            alert(result.message || "An error occurred while analyzing the URL.");
+            // alert(result.message || "An error occurred while analyzing the URL.");
+            document.getElementById("errorContainer").textContent = result.message || "An error occurred while analyzing the URL.";
             document.getElementById("resultsLoading").style.display = "none";
             document.getElementById("analyzeBtn").disabled = false;
             document.getElementById("analyzeBtnText").textContent = "Analyze";
             document.getElementById("analyzeBtnSpinner").classList.add("d-none");
+            document.getElementById("errorContainer").classList.remove("d-none");
             return;
         }
 
         const data = result.data;
+        document.getElementById("resultContainer").classList.remove("d-none");
         document.getElementById("resUrl").href = data.url;
         document.getElementById("resUrl").textContent = data.url;
         document.getElementById("resTitle").textContent = data.title;

@@ -27,10 +27,6 @@ func Init() {
 		panic(err)
 	}
 
-	//log.SetOutput(logFile)
-	//log.SetFormatter(&log.JSONFormatter{})
-	//log.SetLevel(log.FatalLevel)
-
 	Log = logrus.New()
 	Log.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,

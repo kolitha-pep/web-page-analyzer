@@ -34,13 +34,13 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 	in = ensureHTTPS(in)
 	parsedUrl, err := url.ParseRequestURI(in)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid URL: %w", err)
 	}
 
 	// Fetch the webpage content
 	res, err := http.Get(parsedUrl.String())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to fetch the web page content: %w", err)
 	}
 
 	defer res.Body.Close()
@@ -64,36 +64,31 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 
 	// creating output object
 	out := &WebPageMeta{
-		Url:         parsedUrl.String(),
-		Title:       d.Find("title").Text(),
-		HtmlVersion: htmlVersion,
+		Url:          parsedUrl.String(),
+		Title:        d.Find("title").Text(),
+		HtmlVersion:  htmlVersion,
+		HeadTags:     countHtmlHeadTags(d),
+		HasLoginForm: checkForLoginForm(d),
 	}
 
-	// Count HTML head tags
-	hTags := make(map[string]int)
-	for i := 1; i <= 6; i++ {
-		tag := fmt.Sprintf("h%d", i)
-		hTags[tag] = d.Find(tag).Length()
-	}
+	out.InternalLinks, out.ExternalLinks, out.BrokenLinks = analyzeHyperlinks(d, parsedUrl)
+	out.QueryTime = utils.RoundFloat(time.Since(startedAt).Seconds(), 2)
 
-	// Hyperlink checking
-	baseUrl := parsedUrl.Host
-	hyperLinks := d.Find("a[href]")
-	out.HeadTags = hTags
+	return out, nil
+}
 
+func analyzeHyperlinks(doc *goquery.Document, parsedUrl *url.URL) (int, int, int) {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
 	internalLinks, externalLinks, brokenLinks := 0, 0, 0
 
-	hyperLinks.Each(func(i int, x *goquery.Selection) {
-		href, _ := x.Attr("href")
+	doc.Find("a[href]").Each(func(_ int, sel *goquery.Selection) {
+		href, _ := sel.Attr("href")
 		wg.Add(1)
 
 		go func(link string) {
-
 			defer wg.Done()
-
 			absoluteUrl, err := url.Parse(link)
 
 			// If the link is invalid or a mailto link, skip it
@@ -109,7 +104,7 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 				absoluteUrl.Host = parsedUrl.Host
 			}
 
-			isInternalLink := strings.Contains(absoluteUrl.Host, baseUrl)
+			isInternalLink := strings.Contains(absoluteUrl.Host, parsedUrl.Host)
 
 			// check if this link is accessible or not
 			if !fetcher.IsLinkReachable(fullUrl) {
@@ -133,14 +128,17 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 
 	wg.Wait()
 
-	out.InternalLinks = internalLinks
-	out.ExternalLinks = externalLinks
-	out.BrokenLinks = brokenLinks
-	out.HasLoginForm = checkForLoginForm(d)
-	out.QueryTime = utils.RoundFloat(time.Since(startedAt).Seconds(), 2)
-	return out, nil
+	return internalLinks, externalLinks, brokenLinks
+}
 
-	return out, nil
+func countHtmlHeadTags(doc *goquery.Document) map[string]int {
+	hTags := make(map[string]int)
+	for i := 1; i <= 6; i++ {
+		tag := fmt.Sprintf("h%d", i)
+		hTags[tag] = doc.Find(tag).Length()
+	}
+
+	return hTags
 }
 
 func getHtmlVersion(resp *http.Response) (string, error) {
@@ -186,15 +184,38 @@ func getHtmlVersion(resp *http.Response) (string, error) {
 }
 
 func checkForLoginForm(doc *goquery.Document) bool {
-	found := false
-	doc.Find("form").EachWithBreak(func(i int, s *goquery.Selection) bool {
-		if s.Find("input[type='password']").Length() > 0 {
-			found = true
+	return doc.Find("form").FilterFunction(func(_ int, form *goquery.Selection) bool {
+		hasPassword := form.Find("input[type='password']").Length() > 0
+		if !hasPassword {
 			return false
 		}
-		return true
-	})
-	return found
+
+		// Check for common username/email fields
+		hasUserField := false
+		form.Find("input").EachWithBreak(func(i int, input *goquery.Selection) bool {
+			typ, _ := input.Attr("type")
+			name, _ := input.Attr("name")
+			id, _ := input.Attr("id")
+
+			if typ == "email" {
+				hasUserField = true
+				return false
+			}
+
+			if typ == "text" && (containsLoginKeyword(name) || containsLoginKeyword(id)) {
+				hasUserField = true
+				return false
+			}
+			return true
+		})
+
+		return hasUserField
+	}).Length() > 0
+}
+
+func containsLoginKeyword(attr string) bool {
+	attr = strings.ToLower(attr)
+	return strings.Contains(attr, "user") || strings.Contains(attr, "login") || strings.Contains(attr, "email")
 }
 
 func ensureHTTPS(url string) string {
