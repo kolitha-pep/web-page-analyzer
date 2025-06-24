@@ -115,6 +115,15 @@
             analyzeURL(); // optional: auto-trigger analysis
         }
     });
+
+    const input = document.getElementById("urlInput");
+    const button = document.getElementById("analyzeBtn");
+    button.disabled = input.value.trim() === "";
+
+    input.addEventListener("input", function () {
+        console.log("Input changed:", input.value);
+        button.disabled = input.value.trim() === "";
+    });
 </script>
 </body>
 </html>
