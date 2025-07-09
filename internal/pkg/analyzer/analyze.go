@@ -37,6 +37,14 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 		return nil, fmt.Errorf("invalid URL: %w", err)
 	}
 
+	// first check in the cache if this URL is already analyzed
+	cacheKey := fmt.Sprintf("webpage:%s", in)
+	if cachedResult, exists := utils.GetCache(cacheKey); exists {
+		if meta, ok := cachedResult.(*WebPageMeta); ok {
+			return meta, nil
+		}
+	}
+
 	// Fetch the webpage content
 	res, err := fetcher.HttpGet(parsedUrl.String())
 	if err != nil {
@@ -73,6 +81,10 @@ func AnalyzeWebPage(in string) (*WebPageMeta, error) {
 
 	out.InternalLinks, out.ExternalLinks, out.BrokenLinks = analyzeHyperlinks(d, parsedUrl)
 	out.QueryTime = utils.RoundFloat(time.Since(startedAt).Seconds(), 2)
+
+	// Cache the result
+	cacheKey = fmt.Sprintf("webpage:%s", parsedUrl.String())
+	go utils.SetCache(cacheKey, out)
 
 	return out, nil
 }
